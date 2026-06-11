@@ -1,58 +1,54 @@
 # Documento de Requisitos Técnicos (PRD): Plataforma de Apuestas Mundial - Uso Interno
 
 ## 1. Visión General
-Necesito desarrollar una aplicación web para gestionar las apuestas internas de mi empresa durante el Mundial. La plataforma debe ser **100% Mobile-First y ultra-responsiva**, diseñada específicamente para que los empleados la usen desde sus teléfonos celulares. La estética debe ser similar a los sitios de apuestas deportivas (tema oscuro, banderas de países, diseño emocionante y "mundialero").
+Necesito desarrollar una aplicación web para gestionar las apuestas internas de mi empresa durante el Mundial. La plataforma debe ser **100% Mobile-First y ultra-responsiva**, diseñada para que los empleados consulten la información desde sus teléfonos. La estética debe ser similar a los sitios de apuestas deportivas (tema oscuro, banderas de países, diseño emocionante y "mundialero").
 
-## 2. Stack Tecnológico
-* **Frontend:** Next.js (App Router), React, TailwindCSS (para diseño fluido, responsivo y adaptado a móviles).
-* **Backend:** Go (Golang) usando un framework ligero como Gin, Fiber o Chi.
+## 2. Stack Tecnológico e Infraestructura
+* **Frontend:** Next.js (App Router), React, TailwindCSS.
+* **Backend:** Go (Golang) estructurado para **AWS Lambda** (Runtime: `provided.al2023`).
+* **Framework Web:** Gin o Fiber (usando `aws-lambda-go-api-proxy` para adaptar el enrutador HTTP a Lambda).
 * **Base de Datos:** PostgreSQL.
 * **Comunicación:** API REST.
 
 ## 3. Reglas de Negocio y Lógica de Apuestas
-* **Dinámica de Apuesta:** Se apuesta por **cada partido individual**, no hay un pozo global para el torneo.
-* **Monto y Pozo:** El Administrador define cuánto cuesta la entrada/apuesta para cada partido. El sistema debe sumar todas las entradas pagadas para calcular el "Pozo Total" (Total Pot) de ese partido.
-* **Condición de Victoria:** Solo ganan quienes acierten el **resultado exacto** (ej. si apuestan 2-1, el partido debe terminar 2-1). No hay puntos parciales por acertar al ganador sin el resultado exacto.
-* **Distribución del Premio:** Si una persona acierta, se lleva todo el pozo. Si varias personas aciertan el resultado exacto, el pozo total del partido se divide en partes iguales entre los ganadores. *(Nota para el desarrollador: deja preparada la lógica por si nadie acierta, ej. "Pozo desierto / Devolución").*
-* **Visibilidad:** Todas las apuestas de todos los usuarios son públicas. El frontend debe mostrar quién apostó a qué en cada partido.
-* **Gestión de Pagos:** Los pagos reales ocurren fuera de la plataforma, pero el sistema debe tener un registro visual (un toggle/checkbox controlado por el admin) para confirmar quién ya pagó su entrada al partido para inflar el pozo.
+* **Dinámica de Apuesta:** Se apuesta por **cada partido individual**.
+* **Monto y Pozo:** El Administrador define el costo de la apuesta por partido. El sistema calcula el "Pozo Total" multiplicando las entradas válidas.
+* **Ingreso de Datos Centralizado:** **Solo el Administrador tiene permisos para registrar información.** Los usuarios comunes tienen cuentas de "Solo Lectura" para ver la información de forma transparente.
+* **Condición de Victoria:** Solo ganan quienes acierten el **resultado exacto**. Si hay un empate en aciertos, el pozo se divide equitativamente entre los ganadores. Si nadie acierta, se debe dejar la lógica lista para manejar el pozo como "Desierto / Devolución".
+* **Visibilidad:** Todas las apuestas registradas son públicas para todos los empleados dentro de la plataforma.
 
 ## 4. Roles y Autenticación
-* **Autenticación:** Sistema simple de Usuario y Contraseña (sin correos, sin OAuth). JWT para manejo de sesiones.
-* **Rol Usuario:** Puede ver los partidos, hacer sus predicciones (hasta antes de que empiece el partido), ver el pozo, ver las apuestas de sus compañeros y ver el Leaderboard.
-* **Rol Admin:** * Crea/edita los partidos.
-    * Fija el costo de la apuesta por partido.
-    * Marca quién ha pagado la apuesta.
-    * Carga el resultado final real del partido para ejecutar el cálculo de ganadores.
+* **Autenticación:** Sistema simple de Usuario y Contraseña (sin correos, sin OAuth). Sesiones mediante JWT.
+* **Rol Usuario (Lectura):** Puede ver el fixture, el costo por partido, el pozo acumulado, las apuestas de sus compañeros (registradas por el admin) y el Leaderboard global. No puede crear ni modificar apuestas.
+* **Rol Admin (Escritura total):**
+    * Crea y edita los partidos (equipos, fecha, hora).
+    * Fija el costo de la entrada por partido.
+    * **Registra las predicciones (apuestas) de cada empleado en el sistema.**
+    * Marca si el empleado ya pagó la apuesta (para activar su participación).
+    * Introduce el resultado real final del partido para liquidar el pozo.
 
 ## 5. Requisitos de la Interfaz y UX (Frontend - Next.js)
-* **Diseño Responsivo Obligatorio:** Todos los componentes deben estar optimizados para pantallas táctiles y móviles. Usa layouts verticales inteligentes, menús hamburguesa o barras de navegación inferiores estilo app nativa.
-* **Home/Dashboard:** Lista de partidos próximos en formato de "Cards" verticales para móviles, con sus banderas, fecha/hora, costo de entrada y pozo actual acumulado.
-* **Detalle del Partido:** Vista móvil optimizada donde se ve:
-    * El input táctil para poner el resultado rápidamente (ej. botones `+` y `-` para los goles, o inputs numéricos cómodos).
-    * Lista desplegable o scrolleable de usuarios que ya entraron a este partido y sus predicciones.
-    * El pozo total destacado en la parte superior.
-* **Leaderboard:** Una tabla de posiciones global que se adapte a pantallas angostas (ocultando columnas secundarias en mobile si es necesario) que muestre quién ha ganado más dinero acumulado o quién ha tenido más aciertos exactos.
-* **Estilo Visual:** Estética "Mundialera", tipo casa de apuestas deportivas. Uso de tarjetas (cards), tipografía clara y colores vibrantes sobre fondos oscuros (Dark Mode).
+* **Diseño Responsivo Obligatorio:** Enfoque Mobile-First para smartphones.
+* **Home/Dashboard:** Lista de partidos en formato de "Cards" verticales. Muestra banderas, fecha, pozo acumulado y costo de entrada.
+* **Detalle del Partido (Vista Usuario):** Muestra el pozo destacado y una lista con los nombres de sus compañeros y la predicción exacta que el admin les registró.
+* **Detalle del Partido (Vista Admin):** Formulario o panel con un listado de todos los usuarios del sistema donde el Admin puede ingresar los goles de la predicción de cada uno y un checkbox para marcar el pago.
+* **Leaderboard:** Tabla de posiciones global adaptada a móviles (scrolleable u ocultando datos secundarios) que muestra el dinero total acumulado ganado por cada persona.
+* **Estilo Visual:** Dark Mode agresivo, tipografías estilo deportivo, colores vibrantes (verde/dorado/azul mundialista).
 
 ## 6. Modelo de Datos Sugerido (PostgreSQL)
-Por favor, genera los scripts de SQL o la estructura de migración/GORM (si usas ORM en Go) basándote en esta idea:
-
 * `users`: id, username, password_hash, role (admin/user).
 * `matches`: id, team_a, team_b, match_datetime, status (pending, in_progress, finished), score_a, score_b, entry_fee.
 * `bets`: id, user_id, match_id, predicted_score_a, predicted_score_b, is_paid (boolean).
 
 ## 7. Tareas para el LLM (Claude)
-1.  **Backend (Go):** Escribe el código del servidor, incluyendo la conexión a PostgreSQL, el modelo de datos, la autenticación JWT y los controladores para:
-    * Registro/Login.
-    * CRUD de partidos (Admin).
-    * Endpoint para colocar apuesta (Usuario).
-    * Endpoint de "Liquidación" (Admin setea el resultado final y el backend calcula los ganadores y reparte el pozo virtualmente).
-2.  **Frontend (Next.js):** Genera la estructura de páginas y componentes de React con Tailwind (utilizando clases responsivas como `md:`, `lg:` pero priorizando la vista base mobile) para:
-    * Layout principal con Navbar adaptada a móviles.
-    * Card de Partido optimizada.
-    * Vista de Detalle de Partido (donde se ven las apuestas de todos).
-    * Tabla de Posiciones (Leaderboard) responsiva.
-3.  **Seed Data:** Proporciona un script o función en Go para poblar la base de datos con al menos los partidos de la fase de grupos de un Mundial para no empezar con la BD vacía.
+1.  **Backend (Go para AWS Lambda):** Escribe el código del servidor preparado para Lambda.
+    * **IMPORTANTE:** No uses el `r.Run()` tradicional. Implementa el Handler de AWS Lambda envolviendo el router (Gin/Fiber) con `aws-lambda-go-api-proxy`.
+    * Modelos de datos con GORM o SQL puro para PostgreSQL.
+    * Endpoints de autenticación JWT.
+    * Endpoints administrativos para el CRUD de partidos, registro masivo/individual de apuestas de los usuarios, y cierre de partido (cálculo de ganadores).
+2.  **Frontend (Next.js):** Genera la estructura de páginas y componentes responsivos con TailwindCSS.
+    * Vistas diferenciadas por rol (especialmente el detalle de partido para el admin, optimizado para meter las apuestas rápido).
+    * Componente de tabla para el Leaderboard.
+3.  **Seed Data:** Genera un archivo o script en Go para poblar la base de datos con usuarios de prueba y los primeros partidos de la fase de grupos del Mundial.
 
-Por favor, comienza entregando la arquitectura de carpetas para ambos proyectos y el código base del servidor en Go.
+Por favor, comienza entregando la arquitectura de carpetas para ambos proyectos y la estructura del `main.go` adaptada para AWS Lambda junto con los modelos de base de datos.
